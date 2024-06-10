@@ -22,6 +22,9 @@ Function Get-AllAzGraphResource {
 }
 
 function Get-AllResourceGroup {
+  param (
+    [string]$SubscriptionId
+  )
 
   # Query to get all resource groups in the tenant
   $q = "resourcecontainers
@@ -32,7 +35,8 @@ function Get-AllResourceGroup {
       on subscriptionId
   | project subscriptionName, subscriptionId, resourceGroup, id=tolower(id)"
 
-  return Get-AllAzGraphResources -query $q
+  # Returns
+  return $($SubscriptionId ? (Get-AllAzGraphResources -query $q -subscriptionId $SubscriptionId) : (Get-AllAzGraphResources -query $q))
 }
 
 function Get-ResourceGroupsByList {
