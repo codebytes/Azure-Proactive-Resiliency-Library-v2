@@ -13,7 +13,7 @@ function New-AzSubscriptionSelection {
 function New-AzResourceGroupSelection {
   param (
     [Parameter(Mandatory=$true)]
-    [string]$SubscriptionId
+    [string[]]$SubscriptionIds
   )
-  return Get-AllResourceGroup -SubscriptionId $SubscriptionId | Out-ConsoleGridView -OutputMode Multiple -Title "Select Resource Group(s)"
+  return Get-AllResourceGroup -SubscriptionId $SubscriptionIds | Out-ConsoleGridView -OutputMode Multiple -Title "Select Resource Group(s)"
 }
