@@ -30,7 +30,8 @@ Param(
   $TagFiltering
   )
 
-import-module "./modules/collector.psm1" -Force
+  #Grab all modules in modules directory and load them
+"./modules/*.psm1" | Get-ChildItem | Import-Module -Force
 
 if ($Debugging.IsPresent) { $DebugPreference = 'Continue' } else { $DebugPreference = "silentlycontinue" }
 

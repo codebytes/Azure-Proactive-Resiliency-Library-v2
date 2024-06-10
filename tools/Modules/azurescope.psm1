@@ -15,5 +15,5 @@ function New-AzResourceGroupSelection {
     [Parameter(Mandatory=$true)]
     [string[]]$SubscriptionIds
   )
-  return Get-AllResourceGroup -SubscriptionId $SubscriptionIds | Out-ConsoleGridView -OutputMode Multiple -Title "Select Resource Group(s)"
+  return Get-AllResourceGroup -SubscriptionId $SubscriptionIds | Select-Object ResourceGroup, SubscriptionName, resourceId | Out-ConsoleGridView -OutputMode Multiple -Title "Select Resource Group(s)"
 }
