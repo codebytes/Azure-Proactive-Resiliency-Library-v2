@@ -9,9 +9,6 @@
 /tools/[Ww][Aa][Rr][Aa]*.xlsx
 /tools/*.txt
 /tools/*.pptx
-rg.txt
-sub.txt
-scope.txt
 
 # User-specific files
 *.rsuser
