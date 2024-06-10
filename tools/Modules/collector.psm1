@@ -37,7 +37,7 @@ function Get-AllResourceGroup {
 
   $r = $SubscriptionId ? (Get-AllAzGraphResource -query $q -subscriptionId $SubscriptionId) : (Get-AllAzGraphResource -query $q)
 
-  # Returns
+  # Returns the resource groups
   return $r
 }
 
@@ -53,11 +53,12 @@ function Get-ResourceGroupsByList {
       [string]$KeyColumn
   )
 
-  $matchingObjects = @()
+  #$matchingObjects = @()
 
-  foreach ($obj in $ObjectList) {
+  $matchingObjects = foreach ($obj in $ObjectList) {
       if (($obj.$KeyColumn.split("/")[0..4] -join "/") -in $FilterList) {
-          $matchingObjects += $obj
+          #$matchingObjects += $obj
+          $obj
       }
   }
 
