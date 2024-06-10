@@ -4,7 +4,7 @@ Function Get-AllAzGraphResource {
     [string]$query = 'Resources | project id, resourceGroup, subscriptionId, name, type, location'
   )
 
-  $result = Search-AzGraph -Query $query -first 1000 -Subscription $subscriptionId -ErrorAction SilentlyContinue # -first 1000 returns the first 1000 results and subsequently reduces the amount of queries required to get data.
+  $result = $subscriptionId ? (Search-AzGraph -Query $query -first 1000 -Subscription $subscriptionId ) : (Search-AzGraph -Query $query -first 1000) # -first 1000 returns the first 1000 results and subsequently reduces the amount of queries required to get data.
 
   # Collection to store all resources
   $allResources = @($result)
@@ -12,7 +12,7 @@ Function Get-AllAzGraphResource {
   # Loop to paginate through the results using the skip token
   while ($result.SkipToken) {
     # Retrieve the next set of results using the skip token
-    $result = Search-AzGraph -Query $query -SkipToken $result.SkipToken -Subscription $subscriptionId -First 1000 -ErrorAction SilentlyContinue
+    $result = $subscriptionId ? (Search-AzGraph -Query $query -SkipToken $result.SkipToken -Subscription $subscriptionId -First 1000 ) : (Search-AzGraph -query $query -SkipToken $result.SkipToken -First 1000)
     # Add the results to the collection
     $allResources += $result
   }
@@ -35,8 +35,10 @@ function Get-AllResourceGroup {
       on subscriptionId
   | project subscriptionName, subscriptionId, resourceGroup, id=tolower(id)"
 
+  $r = $SubscriptionId ? (Get-AllAzGraphResource -query $q -subscriptionId $SubscriptionId) : (Get-AllAzGraphResource -query $q)
+
   # Returns
-  return $($SubscriptionId ? (Get-AllAzGraphResources -query $q -subscriptionId $SubscriptionId) : (Get-AllAzGraphResources -query $q))
+  return $r
 }
 
 function Get-ResourceGroupsByList {
