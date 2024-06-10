@@ -43,7 +43,7 @@ function Get-AllResourceGroup {
 
 function Get-ResourceGroupsByList {
   param (
-      [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+      [Parameter(Mandatory=$true)]
       [array]$ObjectList,
 
       [Parameter(Mandatory=$true)]
@@ -53,11 +53,10 @@ function Get-ResourceGroupsByList {
       [string]$KeyColumn
   )
 
-  #$matchingObjects = @()
+
 
   $matchingObjects = foreach ($obj in $ObjectList) {
       if (($obj.$KeyColumn.split("/")[0..4] -join "/") -in $FilterList) {
-          #$matchingObjects += $obj
           $obj
       }
   }
