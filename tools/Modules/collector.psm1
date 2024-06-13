@@ -1,10 +1,10 @@
 Function Get-AllAzGraphResource {
   param (
-    [string[]]$subscriptionIds,
+    [string[]]$subscriptionId,
     [string]$query = 'Resources | project id, resourceGroup, subscriptionId, name, type, location'
   )
 
-  $result = $subscriptionId ? (Search-AzGraph -Query $query -first 1000 -Subscription $subscriptionIds ) : (Search-AzGraph -Query $query -first 1000) # -first 1000 returns the first 1000 results and subsequently reduces the amount of queries required to get data.
+  $result = $subscriptionId ? (Search-AzGraph -Query $query -first 1000 -Subscription $subscriptionId) : (Search-AzGraph -Query $query -first 1000 -usetenantscope) # -first 1000 returns the first 1000 results and subsequently reduces the amount of queries required to get data.
 
   # Collection to store all resources
   $allResources = @($result)
@@ -12,7 +12,7 @@ Function Get-AllAzGraphResource {
   # Loop to paginate through the results using the skip token
   while ($result.SkipToken) {
     # Retrieve the next set of results using the skip token
-    $result = $subscriptionId ? (Search-AzGraph -Query $query -SkipToken $result.SkipToken -Subscription $subscriptionIds -First 1000 ) : (Search-AzGraph -query $query -SkipToken $result.SkipToken -First 1000)
+    $result = $subscriptionId ? (Search-AzGraph -Query $query -SkipToken $result.SkipToken -Subscription $subscriptionId -First 1000) : (Search-AzGraph -query $query -SkipToken $result.SkipToken -First 1000 -UseTenantScope)
     # Add the results to the collection
     $allResources += $result
   }
@@ -35,7 +35,7 @@ function Get-AllResourceGroup {
       on subscriptionId
   | project subscriptionName, subscriptionId, resourceGroup, id=tolower(id)"
 
-  $r = $SubscriptionIds ? (Get-AllAzGraphResource -query $q -subscriptionId $SubscriptionIds) : (Get-AllAzGraphResource -query $q)
+  $r = $SubscriptionIds ? (Get-AllAzGraphResource -query $q -subscriptionId $SubscriptionIds -usetenantscope) : (Get-AllAzGraphResource -query $q -usetenantscope)
 
   # Returns the resource groups
   return $r
