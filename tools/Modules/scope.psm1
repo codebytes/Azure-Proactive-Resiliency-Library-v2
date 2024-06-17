@@ -18,7 +18,7 @@ function New-AzResourceGroupSelection {
   return Get-AllResourceGroup -SubscriptionId $SubscriptionIds | Select-Object ResourceGroup, SubscriptionName, resourceId | Out-ConsoleGridView -OutputMode Multiple -Title "Select Resource Group(s)"
 }
 
-function Get-ConfigFileData($file){
+function Import-ConfigFileData($file){
   # Read the file content and store it in a variable
   $filecontent = (Get-content $file).trim().tolower()
 

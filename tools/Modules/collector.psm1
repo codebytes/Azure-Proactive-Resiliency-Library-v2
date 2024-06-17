@@ -63,3 +63,52 @@ function Get-ResourceGroupsByList {
 
   return $matchingObjects
 }
+
+function Invoke-TagFiltering {
+  param($TagFilters,$Subid)
+
+    $TagFile = get-item -Path $TagFilters
+    $TagFile = $TagFile.FullName
+    $TagFilter = Get-Content -Path $TagFile
+
+    # Each line in the Tag Filtering file will be processed
+    $TaggedResourceGroups = @()
+    Foreach ($TagLine in $TagFilter)
+      {
+        # Finding the TagKey and all the TagValues in the line
+        $TagKey = $TagLine.split(':')[0]
+        $TagValues = $TagLine.split(',')
+        Foreach ($TagValue in $TagValues)
+          {
+            #Due to the split used to create the array the first TagValue in the array will still have the TagKey
+            if ($TagValue -eq $TagValues[0])
+              {
+                $TagValue = $TagValue.replace(($TagKey+':'),'')
+              }
+            Write-Debug ("Running Resource Group Tag Inventory for: "+ $TagKey + " : " + $TagValue)
+            #Getting all the Resource Groups with the Tags, this will be used later
+
+            $RGTagQuery = "ResourceContainers | where type =~ 'microsoft.resources/subscriptions/resourcegroups' | mvexpand tags | extend tagKey = tostring(bag_keys(tags)[0]) | extend tagValue = tostring(tags[tagKey]) | where tagKey =~ '$TagKey' and tagValue =~ '$TagValue' | project id | order by id"
+
+            $TaggedResourceGroups += Get-AllAzGraphResource -query $RGTagQuery -subscriptionId $Subid
+
+            Write-Debug ("Running Resource Tag Inventory for: "+ $TagKey + " : " + $TagValue)
+            #Getting all the resources within the TAGs
+            $ResourcesTagQuery = "Resources | mvexpand tags | extend tagKey = tostring(bag_keys(tags)[0]) | extend tagValue = tostring(tags[tagKey]) | where tagKey =~ '$TagKey' and tagValue =~ '$TagValue' | project id, name, subscriptionId, resourceGroup, location | order by id"
+
+            $Script:TaggedResources += Get-AllAzGraphResource -query $ResourcesTagQuery -subscriptionId $Subid
+          }
+        }
+    #If Tags are present in the Resource Group level we make sure to get all the resources within that resource group
+    if ($TaggedResourceGroups)
+      {
+        foreach ($ResourceGroup in $TaggedResourceGroups)
+          {
+            Write-Debug ("Double Checking Tagged Resources inside the Resource Group: " + $ResourceGroup)
+            $ResourcesTagQuery = "Resources | where id startswith '$ResourceGroup' | project id, name, subscriptionId, resourceGroup, location | order by id"
+
+            $Script:TaggedResources += Get-AllAzGraphResource -query $ResourcesTagQuery -subscriptionId $Subid
+
+          }
+      }
+}
