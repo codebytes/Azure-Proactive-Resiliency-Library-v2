@@ -71,22 +71,3 @@ function Import-ConfigFileData($file){
   return [pscustomobject]$objarray
 
 }
-
-function Get-ConfigScopeData {
-  param(
-      [string[]]$scopeData
-  )
-
-}
-
-Function Get-ConfigLocationData {
-  param(
-      [string[]]$locationData)
-}
-
-Function Get-ConfigTagData {
-param(
-  [string[]]$tagData
-)
-
-}
