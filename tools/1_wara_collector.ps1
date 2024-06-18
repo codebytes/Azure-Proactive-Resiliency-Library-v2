@@ -162,6 +162,51 @@ function Get-AllResourceGroup {
     return $matchingObjects
   }
 
+  function Get-SubscriptionsByList {
+    param (
+      [Parameter(Mandatory = $true)]
+      [array]$ObjectList,
+
+      [Parameter(Mandatory = $true)]
+      [array]$FilterList,
+
+      [Parameter(Mandatory = $true)]
+      [string]$KeyColumn
+    )
+
+    $matchingObjects = @()
+
+    foreach ($obj in $ObjectList) {
+      if (($obj.$KeyColumn.split('/')[0..2] -join '/') -in $FilterList) {
+        $matchingObjects += $obj
+      }
+    }
+
+    return $matchingObjects
+  }
+
+  function Get-ResourcesByList {
+    param (
+      [Parameter(Mandatory = $true)]
+      [array]$ObjectList,
+
+      [Parameter(Mandatory = $true)]
+      [array]$FilterList,
+
+      [Parameter(Mandatory = $true)]
+      [string]$KeyColumn
+    )
+
+    $matchingObjects = @()
+
+    foreach ($obj in $ObjectList) {
+      if ($obj.$KeyColumn -in $FilterList) {
+        $matchingObjects += $obj
+      }
+    }
+
+    return $matchingObjects
+  }
   function Test-SubscriptionParameter {
     if ([string]::IsNullOrEmpty($SubscriptionIds) -and [string]::IsNullOrEmpty($ConfigFile) -and -not $GUI)
       {
