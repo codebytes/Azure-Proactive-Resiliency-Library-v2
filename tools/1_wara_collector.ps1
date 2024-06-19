@@ -326,14 +326,6 @@ return $r
             Install-Module -Name Az.ResourceGraph -SkipPublisherCheck -InformationAction SilentlyContinue
           }
              Write-Host "Validating " -NoNewline
-        Write-Host "Microsoft.PowerShell.ConsoleGuiTools" -ForegroundColor Cyan -NoNewline
-        Write-Host " Module.."
-        $ConsoleGUITools = Get-Module -Name Microsoft.PowerShell.ConsoleGuiTools -ListAvailable -ErrorAction silentlycontinue
-        if ($null -eq $ConsoleGUITools)
-          {
-            Write-Host "Installing ConsoleGuiTools Modules" -ForegroundColor Yellow
-            Install-Module -Name Microsoft.PowerShell.ConsoleGuiTools -SkipPublisherCheck -InformationAction SilentlyContinue
-          }
         Write-Host "Validating " -NoNewline
         Write-Host "Git" -ForegroundColor Cyan -NoNewline
         Write-Host " Installation.."
