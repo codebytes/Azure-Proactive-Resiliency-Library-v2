@@ -261,7 +261,7 @@ return $r
     if ([string]::IsNullOrEmpty($SubscriptionIds) -and [string]::IsNullOrEmpty($ConfigFile) -and -not $GUI)
       {
         Write-Host ""
-        Write-Host "Suscription ID or Subscription File is required"
+        Write-Host "Subscription ID or Subscription File is required"
         Write-Host ""
         Exit
       }
