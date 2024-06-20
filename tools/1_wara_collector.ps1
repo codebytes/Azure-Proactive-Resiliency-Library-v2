@@ -275,7 +275,7 @@ function Get-FilteredResourceList {
 
   $ResourceFilters ? ($ResourceFilteredResources = Get-ResourcesByList -ObjectList $UnfilteredResources -FilterList $ResourceFilters -KeyColumn "Id") : "Resource Filters not provided."
 
-  $FilteredResources = ($SubscriptionFilteredResources + $ResourceGroupFilteredResources + $ResourceFilteredResources) | Sort-Object -Property Id -Unique
+  $FilteredResources = $SubscriptionFilteredResources + $ResourceGroupFilteredResources + $ResourceFilteredResources #| Sort-Object -Property Id -Unique
 
   return $FilteredResources
 
