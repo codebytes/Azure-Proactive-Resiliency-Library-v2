@@ -201,11 +201,9 @@ return $r
       [string]$KeyColumn
     )
 
-    $matchingObjects = @()
-
-    foreach ($obj in $ObjectList) {
+    $matchingObjects = foreach ($obj in $ObjectList) {
       if (($obj.$KeyColumn.split('/')[0..4] -join '/') -in $FilterList) {
-        $matchingObjects += $obj
+        $obj
       }
     }
 
@@ -224,11 +222,9 @@ return $r
       [string]$KeyColumn
     )
 
-    $matchingObjects = @()
-
-    foreach ($obj in $ObjectList) {
+    $matchingObjects = foreach ($obj in $ObjectList) {
       if (($obj.$KeyColumn.split('/')[0..2] -join '/') -in $FilterList) {
-        $matchingObjects += $obj
+        $obj
       }
     }
 
@@ -247,16 +243,66 @@ return $r
       [string]$KeyColumn
     )
 
-    $matchingObjects = @()
 
-    foreach ($obj in $ObjectList) {
+
+    $matchingObjects = foreach ($obj in $ObjectList) {
       if ($obj.$KeyColumn -in $FilterList) {
-        $matchingObjects += $obj
+        $obj
       }
     }
 
     return $matchingObjects
   }
+
+function Get-FilteredResourceList {
+  param(
+      [String[]]$SubscriptionFilters,
+      [String[]]$ResourceGroupFilters,
+      [String[]]$ResourceFilters
+  )
+
+  # TODO: ADD FILTERS FOR TAGS
+
+  #Create a list of subscription ids based on the filters. Adds all the filters together then splits them into subscription Ids. Groups them to remove duplicates and returns a string array.
+  $ImplicitSubscriptionIds = (($SubscriptionFilters + $ResourceGroupFilters + $ResourceFilters) | ForEach-Object {$_.split("/")[0..2]} | Group | Select Name).Name
+
+  $UnfilteredResources = Get-AllAzGraphResource -subscriptionId $ImplicitSubscriptionIds
+
+  $SubscriptionFilters ? ($SubscriptionFilteredResources = Get-SubscriptionsByList -ObjectList $UnfilteredResources -FilterList $SubscriptionFilters -KeyColumn "Id") : "Subscription Filters not provided."
+
+  $ResourceGroupFilters ? ($ResourceGroupFilteredResources = Get-ResourceGroupsByList -ObjectList $UnfilteredResources -FilterList $ResourceGroupFilters -KeyColumn "Id") : "Resource Group Filters not provided."
+
+  $ResourceFilters ? ($ResourceFilteredResources = Get-ResourcesByList -ObjectList $UnfilteredResources -FilterList $ResourceFilters -KeyColumn "Id") : "Resource Filters not provided."
+
+
+
+}
+
+Function Get-ConfigFileTagValues {
+  param(
+    [String[]]$RawTagValues
+  )
+$tagKeys = @()
+$tagValues = @()
+$tagObj = @()
+$counter=1
+
+foreach ($tag in $RawTagValues) {
+  $tagKeys = $tag.split('==')[0].split("||")
+  $tagValues = $tag.split('==')[1].split("||")
+  $tagObj += @{
+    "Tags$Counter" = @{
+    Keys = $tagKeys
+    Values = $tagValues
+    }
+  }
+  $counter++
+}
+
+return [pscustomobject]$tagObj
+
+}
+
   function Test-SubscriptionParameter {
     if ([string]::IsNullOrEmpty($SubscriptionIds) -and [string]::IsNullOrEmpty($ConfigFile) -and -not $GUI)
       {
@@ -1351,6 +1397,19 @@ return $r
     }
   }
 
+  function Get-FilterItemsByList {
+    [CmdletBinding()]
+    param(
+      [Parameter(Mandatory = $true)]
+      [array]$ObjectList,
+      [Parameter(Mandatory = $true)]
+      [array]$FilterList,
+      [Parameter(Mandatory = $true)]
+      [string]$KeyColumn
+    )
+
+    Get-ResourcesByList -ObjectList $ObjectList -FilterList $FilterList.Resources -KeyColumn 'id'
+  }
   function New-JsonFile {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Low')]
     param()
