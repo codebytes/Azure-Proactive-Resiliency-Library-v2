@@ -204,6 +204,8 @@ return $r
       [string[]]$ExplicitSubscriptionIds
     )
 
+
+
     $matchingObjects = foreach ($obj in $ObjectList) {
       if (($obj.$KeyColumn.split('/')[0..4] -join '/') -in $FilterList -and ($obj.$KeyColumn.split('/')[0..2] -join '/') -notin $ExplicitSubscriptionIds) {
         $obj
@@ -243,13 +245,16 @@ return $r
       [array]$FilterList,
 
       [Parameter(Mandatory = $true)]
-      [string]$KeyColumn
+      [string]$KeyColumn,
+
+      [Parameter(Mandatory = $true)]
+      [string[]]$ExplicitSubscriptionIds
     )
 
 
 
     $matchingObjects = foreach ($obj in $ObjectList) {
-      if ($obj.$KeyColumn -in $FilterList) {
+      if ($obj.$KeyColumn -in $FilterList -and ($obj.$KeyColumn.split('/')[0..2] -join '/') -notin $ExplicitSubscriptionIds) {
         $obj
       }
     }
