@@ -262,11 +262,10 @@ function Get-FilteredResourceList {
   )
 
   # TODO: ADD FILTERS FOR TAGS
-
   #Create a list of subscription ids based on the filters. Adds all the filters together then splits them into subscription Ids. Groups them to remove duplicates and returns a string array.
-  $ImplicitSubscriptionIds = (($SubscriptionFilters + $ResourceGroupFilters + $ResourceFilters) | ForEach-Object {$_.split("/")[0..2]} | Group | Select Name).Name
+  $ImplicitSubscriptionIds = (($SubscriptionFilters + $ResourceGroupFilters + $ResourceFilters) | ForEach-Object {$_.split("/")[0..2] -join "/"} | Group | Select Name).Name
 
-  $UnfilteredResources = Get-AllAzGraphResource -subscriptionId $ImplicitSubscriptionIds
+  $UnfilteredResources = Get-AllAzGraphResource -subscriptionId ($ImplicitSubscriptionIds -replace ("/subscriptions/",""))
 
   $SubscriptionFilters ? ($SubscriptionFilteredResources = Get-SubscriptionsByList -ObjectList $UnfilteredResources -FilterList $SubscriptionFilters -KeyColumn "Id") : "Subscription Filters not provided."
 
@@ -274,7 +273,9 @@ function Get-FilteredResourceList {
 
   $ResourceFilters ? ($ResourceFilteredResources = Get-ResourcesByList -ObjectList $UnfilteredResources -FilterList $ResourceFilters -KeyColumn "Id") : "Resource Filters not provided."
 
+  $FilteredResources = $SubscriptionFilteredResources + $ResourceGroupFilteredResources + $ResourceFilteredResources
 
+  return $FilteredResources
 
 }
 
