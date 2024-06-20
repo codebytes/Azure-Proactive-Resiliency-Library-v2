@@ -198,16 +198,13 @@ return $r
       [array]$FilterList,
 
       [Parameter(Mandatory = $true)]
-      [string]$KeyColumn,
-
-      [Parameter(Mandatory = $true)]
-      [string[]]$ExplicitSubscriptionIds
+      [string]$KeyColumn
     )
 
 
 
     $matchingObjects = foreach ($obj in $ObjectList) {
-      if (($obj.$KeyColumn.split('/')[0..4] -join '/') -in $FilterList -and ($obj.$KeyColumn.split('/')[0..2] -join '/') -notin $ExplicitSubscriptionIds) {
+      if (($obj.$KeyColumn.split('/')[0..4] -join '/') -in $FilterList) {
         $obj
       }
     }
@@ -245,16 +242,13 @@ return $r
       [array]$FilterList,
 
       [Parameter(Mandatory = $true)]
-      [string]$KeyColumn,
-
-      [Parameter(Mandatory = $true)]
-      [string[]]$ExplicitSubscriptionIds
+      [string]$KeyColumn
     )
 
 
 
     $matchingObjects = foreach ($obj in $ObjectList) {
-      if ($obj.$KeyColumn -in $FilterList -and ($obj.$KeyColumn.split('/')[0..2] -join '/') -notin $ExplicitSubscriptionIds) {
+      if ($obj.$KeyColumn -in $FilterList) {
         $obj
       }
     }
@@ -277,9 +271,9 @@ function Get-FilteredResourceList {
 
   $SubscriptionFilters ? ($SubscriptionFilteredResources = Get-SubscriptionsByList -ObjectList $UnfilteredResources -FilterList $SubscriptionFilters -KeyColumn "Id") : "Subscription Filters not provided."
 
-  $ResourceGroupFilters ? ($ResourceGroupFilteredResources = Get-ResourceGroupsByList -ObjectList $UnfilteredResources -FilterList $ResourceGroupFilters -ExplicitSubscriptionIds $SubscriptionFilters -KeyColumn "Id") : "Resource Group Filters not provided."
+  $ResourceGroupFilters ? ($ResourceGroupFilteredResources = Get-ResourceGroupsByList -ObjectList $UnfilteredResources -FilterList $ResourceGroupFilters -KeyColumn "Id") : "Resource Group Filters not provided."
 
-  $ResourceFilters ? ($ResourceFilteredResources = Get-ResourcesByList -ObjectList $UnfilteredResources -FilterList $ResourceFilters -ExplicitSubscriptionIds $SubscriptionFilters -KeyColumn "Id") : "Resource Filters not provided."
+  $ResourceFilters ? ($ResourceFilteredResources = Get-ResourcesByList -ObjectList $UnfilteredResources -FilterList $ResourceFilters -KeyColumn "Id") : "Resource Filters not provided."
 
   $FilteredResources = $SubscriptionFilteredResources + $ResourceGroupFilteredResources + $ResourceFilteredResources
 
