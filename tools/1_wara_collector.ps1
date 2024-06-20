@@ -277,9 +277,9 @@ function Get-FilteredResourceList {
 
   $SubscriptionFilters ? ($SubscriptionFilteredResources = Get-SubscriptionsByList -ObjectList $UnfilteredResources -FilterList $SubscriptionFilters -KeyColumn "Id") : "Subscription Filters not provided."
 
-  $ResourceGroupFilters ? ($ResourceGroupFilteredResources = Get-ResourceGroupsByList -ObjectList $UnfilteredResources -FilterList $ResourceGroupFilters -KeyColumn "Id") : "Resource Group Filters not provided."
+  $ResourceGroupFilters ? ($ResourceGroupFilteredResources = Get-ResourceGroupsByList -ObjectList $UnfilteredResources -FilterList $ResourceGroupFilters -ExplicitSubscriptionIds $SubscriptionFilters -KeyColumn "Id") : "Resource Group Filters not provided."
 
-  $ResourceFilters ? ($ResourceFilteredResources = Get-ResourcesByList -ObjectList $UnfilteredResources -FilterList $ResourceFilters -KeyColumn "Id") : "Resource Filters not provided."
+  $ResourceFilters ? ($ResourceFilteredResources = Get-ResourcesByList -ObjectList $UnfilteredResources -FilterList $ResourceFilters -ExplicitSubscriptionIds $SubscriptionFilters -KeyColumn "Id") : "Resource Filters not provided."
 
   $FilteredResources = $SubscriptionFilteredResources + $ResourceGroupFilteredResources + $ResourceFilteredResources
 
