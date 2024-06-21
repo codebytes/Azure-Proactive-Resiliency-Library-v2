@@ -466,40 +466,17 @@ return [pscustomobject]$tagObj
   }
 
   function Connect-ToAzure {
+    param(
+      [string]$TenantID,
+      [string[]]$SubscriptionIds,
+      [string]$AzureEnvironment='AzureCloud'
+    )
     # Connect To Azure Tenant
-    Write-Host 'Authenticating to Azure'
-    if ($Script:ShellPlatform -eq 'Win32NT') {
-      Clear-AzContext -Force -ErrorAction SilentlyContinue -WarningAction SilentlyContinue -InformationAction SilentlyContinue
-      if ([string]::IsNullOrEmpty($TenantID)) {
-        Write-Host 'Tenant ID not specified.'
-        Write-Host ''
-        Connect-AzAccount -WarningAction SilentlyContinue -Environment $AzureEnvironment
-        $Tenants = Get-AzTenant
-        if ($Tenants.count -gt 1) {
-          Write-Host 'Select the Azure Tenant to connect : '
-          $Selection = 1
-          foreach ($Tenant in $Tenants) {
-            $TenantName = $Tenant.Name
-            Write-Host "$Selection)  $TenantName"
-            $Selection ++
-          }
-          Write-Host ''
-          [int]$SelectedTenant = Read-Host 'Select Tenant'
-          $defaultTenant = --$SelectedTenant
-          $TenantID = $Tenants[$defaultTenant]
-          Connect-AzAccount -Tenant $TenantID -WarningAction SilentlyContinue -Environment $AzureEnvironment
-        }
-      } else {
-        Connect-AzAccount -Tenant $TenantID -WarningAction SilentlyContinue -Environment $AzureEnvironment
-      }
-      #Set the default variable with the list of subscriptions in case no Subscription File was informed
-      $Script:SubIds = Get-AzSubscription -TenantId $TenantID -WarningAction SilentlyContinue
-    } else {
-      Connect-AzAccount -Identity -Environment $AzureEnvironment
-      $Script:SubIds = Get-AzSubscription -WarningAction SilentlyContinue
+    If(-not (Get-AzContext)){
+      Connect-AzAccount -Tenant $TenantID -WarningAction SilentlyContinue -Environment $AzureEnvironment
     }
-
-
+      #Set the default variable with the list of subscriptions in case no Subscription File was informed
+      #$Script:SubIds = Get-AzSubscription -TenantId $TenantID -WarningAction SilentlyContinue
 
     # Getting Outages
     Write-Debug 'Exporting Outages'
@@ -515,6 +492,7 @@ return [pscustomobject]$tagObj
       $BaseURL = 'management.azure.com'
     }
     foreach ($sub in $SubscriptionIds) {
+      $sub = $sub -replace "/subscriptions/", ""
       Select-AzSubscription -Subscription $sub -WarningAction SilentlyContinue -InformationAction SilentlyContinue | Out-Null
 
       $Token = Get-AzAccessToken
@@ -578,23 +556,24 @@ return [pscustomobject]$tagObj
 
   function Test-SubscriptionFile {
     # Checks if the Subscription file  and TenantID were informed
-    if (![string]::IsNullOrEmpty($SubscriptionsFile)) {
+    if (![string]::IsNullOrEmpty($ConfigFile)) {
       #$filePath = Read-Host "Please provide the path to a text file containing subscription IDs (one SubId per line)"
 
       # Check if the file exists
-      if (Test-Path $SubscriptionsFile -PathType Leaf) {
+      if (Test-Path $ConfigFile -PathType Leaf) {
         # Read the content of the file and split it into an array of subscription IDs
-        $Script:SubIds = Get-Content $SubscriptionsFile -ErrorAction Stop | ForEach-Object { $_ -split ',' }
+        $Script:SubIds = $ConfigData.Subscriptions -replace "/subscriptions/", ""
+        Write-host Working off $SubIDs
 
         # Display the subscription IDs
         Write-Host '---------------------------------------------------------------------'
         Write-Host 'Executing Analysis from Subscription File: ' -NoNewline
-        Write-Host $SubscriptionsFile -ForegroundColor Blue
+        Write-Host $ConfigFile -ForegroundColor Blue
         Write-Host '---------------------------------------------------------------------'
         Write-Host 'The following Subscription IDs were found: '
         Write-Host $SubIds
       } else {
-        Write-Host "File not found: $SubscriptionsFile"
+        Write-Host "File not found: $ConfigFile"
       }
     }
   }
@@ -1415,7 +1394,10 @@ return [pscustomobject]$tagObj
   }
   function New-JsonFile {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Low')]
-    param()
+    param(
+      [Parameter(Mandatory = $true)]
+      [string[]]$FilteredResourceIds
+    )
 
     if ($PSCmdlet.ShouldProcess('')) {
       <#  if($ResourceGroupFile){
@@ -1431,7 +1413,7 @@ return [pscustomobject]$tagObj
 
       #Ternary Expression If ResourceGroupFile is present, then get the ResourceGroups by List, else get the results
       $ResourceExporter = @{
-        Resource = $ResourceGroupList ? $(Get-ResourceGroupsByList -ObjectList $Script:Resources -FilterList $resourcegrouplist -KeyColumn "id") : $Script:Resources
+        Resource = $ConfigFile ? $(Get-ResourcesByList -ObjectList $Script:Resources -FilterList $FilteredResourceIds -KeyColumn "id") : $Script:Resources
       }
 
       $ResourceTypeExporter = @{
@@ -1489,9 +1471,14 @@ return [pscustomobject]$tagObj
       $TenantID = $ConfigData.TenantID
       $SubscriptionIds = $ConfigData.SubscriptionIds
       $ResourceGroupList = $ConfigData.ResourceGroups
+      $ResourceList = $ConfigData.Resources
       $RunbookFile = $ConfigData.RunbookFile
       $Tags = $ConfigData.Tags
     }
+
+    $FilteredResourceIds = Get-FilteredResourceList -SubscriptionFilters $SubscriptionIds -ResourceGroupFilters $ResourceGroupList -ResourceFilters $ResourceList
+    $FilteredResourceIds = $FilteredResourceIds | Sort-Object -Property Id -Unique
+
 
   Write-Debug "Checking Parameters"
   Test-SubscriptionParameter
@@ -1530,7 +1517,7 @@ return [pscustomobject]$tagObj
   Resolve-SupportTicket
 
   Write-Debug 'Calling Function: New-JsonFile'
-  New-JsonFile
+  New-JsonFile -FilteredResourceIds $FilteredResourceIds.id
 
 }
 
