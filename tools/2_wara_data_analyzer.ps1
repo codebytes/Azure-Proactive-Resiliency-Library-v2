@@ -18,8 +18,9 @@ https://github.com/Azure/Azure-Proactive-Resiliency-Library-v2
 Param(
   [switch]$Debugging,
   [switch]$Help,
+  [string[]]$AddlRecPaths,
   [Parameter(mandatory = $true)]
-  [string] $JSONFile)
+  [string]$JSONFile)
 
 if ($Debugging.IsPresent) { $DebugPreference = 'Continue' } else { $DebugPreference = 'silentlycontinue' }
 
@@ -136,6 +137,18 @@ $Script:Runtime = Measure-Command -Expression {
     $CoreResources = $results.ImpactedResources
     $CoreAdvisories = $results.Advisory
 
+    $addlRecFiles = @()
+
+    foreach ($addlRecPath in $AddlRecPaths) {
+      foreach ($addlRecFile in (Get-ChildItem -Path $addlRecPath -Filter 'recommendations.yaml' -Recurse)) {
+        $addlRecFiles += $addlRecFile.FullName
+      }
+    }
+
+    if ($addlRecFiles) {
+      Write-Host "[$($addlRecFiles.Length)] additional recommendation files found." -ForegroundColor Cyan
+    }
+
     $Script:ServicesYAML = Get-ChildItem -Path ($Script:clonePath + '\azure-resources') -Filter 'recommendations.yaml' -Recurse
     $Script:WAFYAML = Get-ChildItem -Path ($Script:clonePath + '\azure-waf') -Filter 'recommendations.yaml' -Recurse
 
@@ -152,15 +165,25 @@ $Script:Runtime = Measure-Command -Expression {
       $Script:ServicesYAML += Get-ChildItem -Path ($Script:clonePath + '\azure-specialized-workloads\hpc') -Filter 'recommendations.yaml' -Recurse
     }
 
+    $Script:ServicesYAMLContent = @()
+    $Script:WAFYAMLContent = @()
+
+    if ($addlRecFiles) {
+      foreach ($addlRecFile in $addlRecFiles) {
+        $Script:ServicesYAMLContent += Get-Content -Path $addlRecFile | ConvertFrom-Yaml
+      }
+
+      Write-Host "[$($addlRecs.Length)] additional recommendations loaded." -ForegroundColor Cyan
+    }
+
     $Script:AdvisorContent = $CoreAdvisories | Select-Object -Property recommendationId, type, category, impact, description -Unique
 
-    $Script:ServicesYAMLContent = @()
     foreach ($YAML in $Script:ServicesYAML) {
       if (![string]::IsNullOrEmpty($YAML)) {
         $Script:ServicesYAMLContent += Get-Content -Path $YAML | ConvertFrom-Yaml
       }
     }
-    $Script:WAFYAMLContent = @()
+
     foreach ($YAML in $Script:WAFYAML) {
       if (![string]::IsNullOrEmpty($YAML)) {
         $Script:WAFYAMLContent += Get-Content -Path $YAML | ConvertFrom-Yaml
@@ -170,86 +193,93 @@ $Script:Runtime = Measure-Command -Expression {
     $Script:MergedRecommendation = @()
     foreach ($Recom in $CoreResources | Where-Object { $_ -ne $null }) {
 
-      $RecomTitle = $Script:ServicesYAMLContent | Where-Object { $_.aprlGuid -eq $Recom.recommendationId }
-      if (![string]::IsNullOrEmpty($Recom.checkName)) {
-        # We're coming from a runbook...
-        $tmp = @{
-          'How was the resource/recommendation validated or what actions need to be taken?' = $Recom.validationAction;
-          recommendationId                                                                  = $Recom.recommendationId;
-          recommendationTitle                                                               = $RecomTitle.description;
-          resourceType                                                                      = $RecomTitle.recommendationResourceType;
-          impact                                                                            = $RecomTitle.recommendationImpact;
-          subscriptionId                                                                    = $Recom.subscriptionId;
-          resourceGroup                                                                     = $Recom.resourceGroup;
-          name                                                                              = $Recom.name;
-          id                                                                                = $Recom.id;
-          location                                                                          = $Recom.location;
-          param1                                                                            = $Recom.param1;
-          param2                                                                            = $Recom.param2;
-          param3                                                                            = $Recom.param3;
-          param4                                                                            = $Recom.param4;
-          param5                                                                            = $Recom.param5;
-          supportTicketId                                                                   = $Tickets;
-          source                                                                            = $Recom.selector;
-          checkName                                                                         = $Recom.checkName;
-          'WAF Pillar'                                                                      = 'Reliability';
-          tagged                                                                            = $Recom.tagged
-        }
-        $Script:MergedRecommendation += $tmp
-      } else {
-        if ([string]::IsNullOrEmpty($RecomTitle.recommendationTypeId)) {
-          $Ticket = $Script:SupportTickets | Where-Object { $_.'Related Resource' -eq $Recom.id }
-          if (($RecomTitle.recommendationMetadataState -eq 'Active' -and [string]::IsNullOrEmpty($RecomTitle.recommendationTypeId)) -or $Recom.validationAction -eq 'IMPORTANT - Recommendation cannot be validated with ARGs - Validate Resources manually' -or $Recom.validationAction -eq 'IMPORTANT - Query under development - Validate Resources manually' ) {
-            $Tickets = if ($Ticket.'Ticket ID'.count -gt 1) { $Ticket.'Ticket ID' | ForEach-Object { $_ + ' /' } }else { $Ticket.'Ticket ID' }
-            $Tickets = [string]$Tickets
-            $Tickets = if ($Tickets -like '* /*') { $Tickets -replace '.$' }else { $Tickets }
-            $tmp = @{
-              'How was the resource/recommendation validated or what actions need to be taken?' = $Recom.validationAction;
-              recommendationId                                                                  = $Recom.recommendationId;
-              recommendationTitle                                                               = $RecomTitle.description;
-              resourceType                                                                      = $RecomTitle.recommendationResourceType;
-              impact                                                                            = $RecomTitle.recommendationImpact;
-              subscriptionId                                                                    = $Recom.subscriptionId;
-              resourceGroup                                                                     = $Recom.resourceGroup;
-              name                                                                              = $Recom.name;
-              id                                                                                = $Recom.id;
-              location                                                                          = $Recom.location;
-              param1                                                                            = $Recom.param1;
-              param2                                                                            = $Recom.param2;
-              param3                                                                            = $Recom.param3;
-              param4                                                                            = $Recom.param4;
-              param5                                                                            = $Recom.param5;
-              supportTicketId                                                                   = "";
-              source                                                                            = $Recom.selector;
-              checkName                                                                         = $Recom.checkName;
-              'WAF Pillar'                                                                      = 'Reliability';
-              tagged                                                                            = $Recom.tagged
-            }
-          } elseif ($Recom.validationAction -eq 'IMPORTANT - Resource Type is not available in either APRL or Advisor - Validate Resources manually if Applicable, if not Delete this line' ) {
-            $tmp = @{
-              'How was the resource/recommendation validated or what actions need to be taken?' = $Recom.validationAction;
-              recommendationId                                                                  = '';
-              recommendationTitle                                                               = $RecomTitle.description;
-              resourceType                                                                      = $Recom.recommendationId;
-              impact                                                                            = '';
-              subscriptionId                                                                    = $Recom.subscriptionId;
-              resourceGroup                                                                     = $Recom.resourceGroup;
-              name                                                                              = $Recom.name;
-              id                                                                                = $Recom.id;
-              location                                                                          = $Recom.location;
-              param1                                                                            = $Recom.param1;
-              param2                                                                            = $Recom.param2;
-              param3                                                                            = $Recom.param3;
-              param4                                                                            = $Recom.param4;
-              param5                                                                            = $Recom.param5;
-              supportTicketId                                                                   = $Tickets;
-              source                                                                            = $Recom.selector;
-              checkName                                                                         = $Recom.checkName;
-              'WAF Pillar'                                                                      = 'Reliability';
-              tagged                                                                            = $Recom.tagged
-            }
+      # Match against recommendation ID or check name...
+      $RecomTitle = $Script:ServicesYAMLContent | Where-Object { `
+        (($_.aprlGuid -eq $Recom.recommendationId) -or `
+         ($_.checkName -eq $Recom.recommendationId))
+      }
+
+      if ($RecomTitle) {
+        if (![string]::IsNullOrEmpty($Recom.checkName)) {
+          # We're coming from a runbook...
+          $tmp = @{
+            'How was the resource/recommendation validated or what actions need to be taken?' = $Recom.validationAction;
+            recommendationId                                                                  = $Recom.recommendationId;
+            recommendationTitle                                                               = $RecomTitle.description;
+            resourceType                                                                      = $RecomTitle.recommendationResourceType;
+            impact                                                                            = $RecomTitle.recommendationImpact;
+            subscriptionId                                                                    = $Recom.subscriptionId;
+            resourceGroup                                                                     = $Recom.resourceGroup;
+            name                                                                              = $Recom.name;
+            id                                                                                = $Recom.id;
+            location                                                                          = $Recom.location;
+            param1                                                                            = $Recom.param1;
+            param2                                                                            = $Recom.param2;
+            param3                                                                            = $Recom.param3;
+            param4                                                                            = $Recom.param4;
+            param5                                                                            = $Recom.param5;
+            supportTicketId                                                                   = $Tickets;
+            source                                                                            = $Recom.selector;
+            checkName                                                                         = $Recom.checkName;
+            'WAF Pillar'                                                                      = 'Reliability';
+            tagged                                                                            = $Recom.tagged
           }
           $Script:MergedRecommendation += $tmp
+        } else {
+          if ([string]::IsNullOrEmpty($RecomTitle.recommendationTypeId)) {
+            $Ticket = $Script:SupportTickets | Where-Object { $_.'Related Resource' -eq $Recom.id }
+            if (($RecomTitle.recommendationMetadataState -eq 'Active' -and [string]::IsNullOrEmpty($RecomTitle.recommendationTypeId)) -or $Recom.validationAction -eq 'IMPORTANT - Recommendation cannot be validated with ARGs - Validate Resources manually' -or $Recom.validationAction -eq 'IMPORTANT - Query under development - Validate Resources manually' ) {
+              $Tickets = if ($Ticket.'Ticket ID'.count -gt 1) { $Ticket.'Ticket ID' | ForEach-Object { $_ + ' /' } }else { $Ticket.'Ticket ID' }
+              $Tickets = [string]$Tickets
+              $Tickets = if ($Tickets -like '* /*') { $Tickets -replace '.$' }else { $Tickets }
+              $tmp = @{
+                'How was the resource/recommendation validated or what actions need to be taken?' = $Recom.validationAction;
+                recommendationId                                                                  = $Recom.recommendationId;
+                recommendationTitle                                                               = $RecomTitle.description;
+                resourceType                                                                      = $RecomTitle.recommendationResourceType;
+                impact                                                                            = $RecomTitle.recommendationImpact;
+                subscriptionId                                                                    = $Recom.subscriptionId;
+                resourceGroup                                                                     = $Recom.resourceGroup;
+                name                                                                              = $Recom.name;
+                id                                                                                = $Recom.id;
+                location                                                                          = $Recom.location;
+                param1                                                                            = $Recom.param1;
+                param2                                                                            = $Recom.param2;
+                param3                                                                            = $Recom.param3;
+                param4                                                                            = $Recom.param4;
+                param5                                                                            = $Recom.param5;
+                supportTicketId                                                                   = '';
+                source                                                                            = $Recom.selector;
+                checkName                                                                         = $Recom.checkName;
+                'WAF Pillar'                                                                      = 'Reliability';
+                tagged                                                                            = $Recom.tagged
+              }
+            } elseif ($Recom.validationAction -eq 'IMPORTANT - Resource Type is not available in either APRL or Advisor - Validate Resources manually if Applicable, if not Delete this line' ) {
+              $tmp = @{
+                'How was the resource/recommendation validated or what actions need to be taken?' = $Recom.validationAction;
+                recommendationId                                                                  = '';
+                recommendationTitle                                                               = $RecomTitle.description;
+                resourceType                                                                      = $Recom.recommendationId;
+                impact                                                                            = '';
+                subscriptionId                                                                    = $Recom.subscriptionId;
+                resourceGroup                                                                     = $Recom.resourceGroup;
+                name                                                                              = $Recom.name;
+                id                                                                                = $Recom.id;
+                location                                                                          = $Recom.location;
+                param1                                                                            = $Recom.param1;
+                param2                                                                            = $Recom.param2;
+                param3                                                                            = $Recom.param3;
+                param4                                                                            = $Recom.param4;
+                param5                                                                            = $Recom.param5;
+                supportTicketId                                                                   = $Tickets;
+                source                                                                            = $Recom.selector;
+                checkName                                                                         = $Recom.checkName;
+                'WAF Pillar'                                                                      = 'Reliability';
+                tagged                                                                            = $Recom.tagged
+              }
+            }
+            $Script:MergedRecommendation += $tmp
+          }
         }
       }
     }
@@ -263,7 +293,7 @@ $Script:Runtime = Measure-Command -Expression {
           $Tickets = if ($Ticket.'Ticket ID'.count -gt 1) { $Ticket.'Ticket ID' | ForEach-Object { $_ + ' /' } }else { $Ticket.'Ticket ID' }
           $Tickets = [string]$Tickets
           $Tickets = if ($Tickets -like '* /*') { $Tickets -replace '.$' }else { $Tickets }
-          $WAFPillar = if($adv.category -eq 'HighAvailability'){'Reliability'}else{$adv.category}
+          $WAFPillar = if ($adv.category -eq 'HighAvailability') { 'Reliability' }else { $adv.category }
           $tmp = @{
             'How was the resource/recommendation validated or what actions need to be taken?' = 'Advisor - Queries';
             recommendationId                                                                  = $APRLADV.recommendationTypeId;
@@ -298,20 +328,20 @@ $Script:Runtime = Measure-Command -Expression {
         recommendationId                                                                  = [string]$WAF.aprlGuid;
         recommendationTitle                                                               = [string]$WAF.description;
         resourceType                                                                      = [string]$WAF.recommendationResourceType;
-        impact                                                                            = "";
-        subscriptionId                                                                    = "";
-        resourceGroup                                                                     = "";
-        name                                                                              = "Entire Workload";
-        id                                                                                = "";
-        location                                                                          = "";
-        param1                                                                            = "";
-        param2                                                                            = "";
-        param3                                                                            = "";
-        param4                                                                            = "";
-        param5                                                                            = "";
-        supportTicketId                                                                   = "";
-        source                                                                            = "APRL";
-        checkName                                                                         = ""
+        impact                                                                            = '';
+        subscriptionId                                                                    = '';
+        resourceGroup                                                                     = '';
+        name                                                                              = 'Entire Workload';
+        id                                                                                = '';
+        location                                                                          = '';
+        param1                                                                            = '';
+        param2                                                                            = '';
+        param3                                                                            = '';
+        param4                                                                            = '';
+        param5                                                                            = '';
+        supportTicketId                                                                   = '';
+        source                                                                            = 'APRL';
+        checkName                                                                         = ''
         'WAF Pillar'                                                                      = 'Reliability';
         tagged                                                                            = $true
       }
@@ -385,10 +415,10 @@ $Script:Runtime = Measure-Command -Expression {
 
 
       $Script:MergedRecommendation | ForEach-Object { [PSCustomObject]$_ } | Select-Object $ImpactedResourcesSheet |
-      Export-Excel -Path $ExcelFile -WorksheetName 'ImpactedResources' -TableName 'Table2' -ConditionalText $cond -AutoSize -TableStyle $TableStyle -Style $Styles1
+        Export-Excel -Path $ExcelFile -WorksheetName 'ImpactedResources' -TableName 'Table2' -ConditionalText $cond -AutoSize -TableStyle $TableStyle -Style $Styles1
 
       $Script:OutOfScope | ForEach-Object { [PSCustomObject]$_ } | Select-Object $OutOfScopeSheet |
-      Export-Excel -Path $ExcelFile -WorksheetName 'Other-OutOfScope' -TableName 'UnTagTable' -ConditionalText $cond2 -AutoSize -TableStyle $TableStyle -Style $Styles2
+        Export-Excel -Path $ExcelFile -WorksheetName 'Other-OutOfScope' -TableName 'UnTagTable' -ConditionalText $cond2 -AutoSize -TableStyle $TableStyle -Style $Styles2
     }
 
     function Add-ResourceType {
